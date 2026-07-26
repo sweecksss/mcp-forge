@@ -7,6 +7,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
 [![MCP Approved](https://img.shields.io/badge/MCP-1.1-7ee787.svg?style=flat-square)](https://modelcontextprotocol.io)
+[![sweecksss/mcp-forge MCP server](https://glama.ai/mcp/servers/sweecksss/mcp-forge/badges/score.svg)](https://glama.ai/mcp/servers/sweecksss/mcp-forge)
 
 ```
    ███╗   ███╗██████╗██████╗     ███████╗██████╗ ██████╗  ██████╗ ███████╗
