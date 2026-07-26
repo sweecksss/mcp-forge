@@ -1,0 +1,743 @@
+#!/usr/bin/env node
+
+// src/cli.ts
+import { Command } from "commander";
+
+// src/utils/banner.ts
+import chalk from "chalk";
+function getBanner() {
+  const logo = `
+   ${chalk.hex("#FF6B6B").bold("\u2588\u2588\u2588\u2557   \u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 ")}    ${chalk.hex("#4D96FF").bold("\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557")}
+   ${chalk.hex("#FF6B6B").bold("\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557")}    ${chalk.hex("#4D96FF").bold("\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D")}
+   ${chalk.hex("#FF8E53").bold("\u2588\u2588\u2554\u2588\u2588\u2588\u2588\u2554\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D")}    ${chalk.hex("#6BCB77").bold("\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2557  ")}
+   ${chalk.hex("#FF8E53").bold("\u2588\u2588\u2551\u255A\u2588\u2588\u2554\u255D\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2554\u2550\u2550\u2550\u255D ")}    ${chalk.hex("#6BCB77").bold("\u2588\u2588\u2554\u2550\u2550\u255D  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255D  ")}
+   ${chalk.hex("#FFD93D").bold("\u2588\u2588\u2551 \u255A\u2550\u255D \u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551     ")}    ${chalk.hex("#FFD93D").bold("\u2588\u2588\u2551     \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557")}
+   ${chalk.hex("#FFD93D").bold("\u255A\u2550\u255D     \u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D     ")}    ${chalk.hex("#FFD93D").bold("\u255A\u2550\u255D     \u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D")}
+  `;
+  const tag = `  ${chalk.bgHex("#4D96FF").white.bold(" MCP-FORGE ")} ${chalk.dim("v1.0.0")} \u2014 ${chalk.gray("The Swiss-Army Developer Toolkit for MCP Servers")}`;
+  return `${logo}
+${tag}
+`;
+}
+function printBanner() {
+  console.log(getBanner());
+}
+
+// src/commands/init.ts
+import fs from "fs";
+import path from "path";
+import chalk2 from "chalk";
+import ora from "ora";
+async function runInitCommand(projectName) {
+  const targetName = projectName || "my-mcp-server";
+  const targetDir = path.resolve(process.cwd(), targetName);
+  if (fs.existsSync(targetDir)) {
+    console.error(chalk2.red(`Error: Directory '${targetName}' already exists!`));
+    process.exit(1);
+  }
+  const spinner = ora(`Scaffolding MCP Server in ${chalk2.bold(targetName)}...`).start();
+  try {
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.mkdirSync(path.join(targetDir, "src"), { recursive: true });
+    const pkgJson = {
+      name: targetName,
+      version: "1.0.0",
+      description: "Custom MCP Server generated with mcp-forge",
+      type: "module",
+      main: "./dist/index.js",
+      bin: {
+        [targetName]: "./dist/index.js"
+      },
+      scripts: {
+        build: "tsup",
+        dev: "tsup --watch",
+        start: "node ./dist/index.js"
+      },
+      dependencies: {
+        "@modelcontextprotocol/sdk": "^1.1.0",
+        "zod": "^3.23.8"
+      },
+      devDependencies: {
+        "@types/node": "^20.14.9",
+        "tsup": "^8.1.0",
+        "typescript": "^5.5.2"
+      }
+    };
+    fs.writeFileSync(path.join(targetDir, "package.json"), JSON.stringify(pkgJson, null, 2));
+    const tsConfig = {
+      compilerOptions: {
+        target: "ES2022",
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        strict: true,
+        outDir: "./dist",
+        rootDir: "./src",
+        skipLibCheck: true
+      },
+      include: ["src/**/*"]
+    };
+    fs.writeFileSync(path.join(targetDir, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
+    const tsupConfig = `import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm'],
+  dts: true,
+  clean: true,
+  banner: {
+    js: '#!/usr/bin/env node'
+  }
+});
+`;
+    fs.writeFileSync(path.join(targetDir, "tsup.config.ts"), tsupConfig);
+    const serverCode = `import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
+
+const server = new Server(
+  {
+    name: '${targetName}',
+    version: '1.0.0'
+  },
+  {
+    capabilities: {
+      tools: {}
+    }
+  }
+);
+
+// Define tool schemas
+const echoSchema = z.object({
+  message: z.string().describe('Message to echo back')
+});
+
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      {
+        name: 'echo',
+        description: 'Simple echo tool',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', description: 'Message to echo' }
+          },
+          required: ['message']
+        }
+      }
+    ]
+  };
+});
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === 'echo') {
+    const { message } = echoSchema.parse(request.params.arguments);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: \`Echo: \${message}\`
+        }
+      ]
+    };
+  }
+  throw new Error(\`Unknown tool: \${request.params.name}\`);
+});
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error('${targetName} MCP Server running on stdio');
+}
+
+main().catch((err) => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});
+`;
+    fs.writeFileSync(path.join(targetDir, "src", "index.ts"), serverCode);
+    const readmeContent = `# ${targetName}
+
+Model Context Protocol (MCP) Server generated with [mcp-forge](https://github.com/sweecksss/mcp-forge).
+
+## Getting Started
+
+\`\`\`bash
+npm install
+npm run build
+npm start
+\`\`\`
+
+## Test with mcp-forge Inspector
+
+\`\`\`bash
+npx mcp-forge inspect node ./dist/index.js
+\`\`\`
+`;
+    fs.writeFileSync(path.join(targetDir, "README.md"), readmeContent);
+    spinner.succeed(chalk2.green(`Successfully scaffolded ${chalk2.bold(targetName)}!`));
+    console.log(`
+Next steps:`);
+    console.log(`  ${chalk2.cyan(`cd ${targetName}`)}`);
+    console.log(`  ${chalk2.cyan(`npm install`)}`);
+    console.log(`  ${chalk2.cyan(`npm run dev`)}
+`);
+  } catch (error) {
+    spinner.fail(chalk2.red(`Failed to scaffold project: ${error.message}`));
+  }
+}
+
+// src/commands/inspect.ts
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import chalk3 from "chalk";
+import ora2 from "ora";
+async function runInspectCommand(commandArgs) {
+  if (commandArgs.length === 0) {
+    console.error(chalk3.red("Error: Please provide the command to run the target MCP server."));
+    console.log(chalk3.yellow("Example: mcp-forge inspect node ./dist/index.js"));
+    process.exit(1);
+  }
+  const [cmd, ...args] = commandArgs;
+  console.log(chalk3.blue(`Connecting to MCP server via stdio: ${chalk3.bold([cmd, ...args].join(" "))}`));
+  const spinner = ora2("Initializing Stdio Transport...").start();
+  try {
+    const transport = new StdioClientTransport({
+      command: cmd,
+      args
+    });
+    const client = new Client(
+      {
+        name: "mcp-forge-inspector",
+        version: "1.0.0"
+      },
+      {
+        capabilities: {}
+      }
+    );
+    await client.connect(transport);
+    spinner.succeed(chalk3.green("Successfully connected to MCP Server!"));
+    console.log(`
+${chalk3.bgBlue.white.bold(" SERVER INSPECTION ")}
+`);
+    try {
+      const toolsResult = await client.listTools();
+      console.log(chalk3.bold.cyan(`\u{1F6E0}\uFE0F  Tools (${toolsResult.tools.length}):`));
+      for (const tool of toolsResult.tools) {
+        console.log(`  \u2022 ${chalk3.green.bold(tool.name)}: ${tool.description || "No description"}`);
+        console.log(chalk3.gray(`    Schema: ${JSON.stringify(tool.inputSchema)}`));
+      }
+    } catch (err) {
+      console.log(chalk3.gray(`Tools: Not supported or empty (${err.message})`));
+    }
+    try {
+      const promptsResult = await client.listPrompts();
+      console.log(`
+${chalk3.bold.yellow(`\u{1F4AC} Prompts (${promptsResult.prompts.length}):`)}`);
+      for (const prompt of promptsResult.prompts) {
+        console.log(`  \u2022 ${chalk3.yellow.bold(prompt.name)}: ${prompt.description || "No description"}`);
+      }
+    } catch (_) {
+      console.log(chalk3.gray("\nPrompts: Not supported or empty"));
+    }
+    try {
+      const resourcesResult = await client.listResources();
+      console.log(`
+${chalk3.bold.magenta(`\u{1F4C1} Resources (${resourcesResult.resources.length}):`)}`);
+      for (const res of resourcesResult.resources) {
+        console.log(`  \u2022 ${chalk3.magenta.bold(res.name)} (${res.uri})`);
+      }
+    } catch (_) {
+      console.log(chalk3.gray("Resources: Not supported or empty"));
+    }
+    console.log(`
+${chalk3.green("\u2714 Inspection completed successfully.")}
+`);
+    await transport.close();
+    process.exit(0);
+  } catch (error) {
+    spinner.fail(chalk3.red(`Inspection failed: ${error.message}`));
+    process.exit(1);
+  }
+}
+
+// src/commands/serve.ts
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+// src/tools/gitTool.ts
+import { execSync } from "child_process";
+import { z } from "zod";
+var gitSummarySchema = z.object({
+  cwd: z.string().optional().describe("Directory path of the Git repository (defaults to current working directory)")
+});
+async function handleGitSummary(args) {
+  const cwd = args.cwd || process.cwd();
+  try {
+    const status = execSync("git status --short", { cwd, encoding: "utf-8" });
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", { cwd, encoding: "utf-8" }).trim();
+    const lastCommit = execSync("git log -1 --oneline", { cwd, encoding: "utf-8" }).trim();
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              branch,
+              lastCommit,
+              uncommittedChanges: status.split("\n").filter(Boolean).length,
+              statusOutput: status || "Clean working tree"
+            },
+            null,
+            2
+          )
+        }
+      ]
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Git Error: ${error.message}`
+        }
+      ],
+      isError: true
+    };
+  }
+}
+
+// src/tools/systemTool.ts
+import os from "os";
+import { z as z2 } from "zod";
+var systemDiagnosticsSchema = z2.object({});
+async function handleSystemDiagnostics() {
+  const cpus = os.cpus();
+  const totalMemMb = Math.round(os.totalmem() / (1024 * 1024));
+  const freeMemMb = Math.round(os.freemem() / (1024 * 1024));
+  const info = {
+    platform: os.platform(),
+    arch: os.arch(),
+    nodeVersion: process.version,
+    uptimeSeconds: Math.round(os.uptime()),
+    cpuModel: cpus.length > 0 ? cpus[0].model : "Unknown",
+    cpuCores: cpus.length,
+    memory: {
+      totalMb: totalMemMb,
+      freeMb: freeMemMb,
+      usedMb: totalMemMb - freeMemMb
+    }
+  };
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(info, null, 2)
+      }
+    ]
+  };
+}
+
+// src/tools/mermaidTool.ts
+import { z as z3 } from "zod";
+var mermaidValidateSchema = z3.object({
+  diagram: z3.string().describe("The Mermaid.js diagram code string to validate")
+});
+async function handleMermaidValidate(args) {
+  const { diagram } = args;
+  const validKeywords = ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram", "gantt", "pie", "gitGraph", "mindmap", "timeline", "architecture"];
+  const trimmed = diagram.trim();
+  const firstWord = trimmed.split(/\s+/)[0];
+  const isValidType = validKeywords.some((kw) => firstWord.startsWith(kw));
+  if (!isValidType) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Validation Failed: Diagram must start with a valid Mermaid diagram type (e.g. flowchart, graph, sequenceDiagram). Found '${firstWord}'.`
+        }
+      ],
+      isError: true
+    };
+  }
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            valid: true,
+            type: firstWord,
+            lineCount: trimmed.split("\n").length,
+            message: "Mermaid diagram syntax structure is valid."
+          },
+          null,
+          2
+        )
+      }
+    ]
+  };
+}
+
+// src/tools/httpTool.ts
+import { z as z4 } from "zod";
+var httpTesterSchema = z4.object({
+  url: z4.string().url().describe("HTTP URL to send a request to"),
+  method: z4.enum(["GET", "POST", "PUT", "DELETE", "PATCH"]).default("GET").describe("HTTP Method"),
+  headers: z4.record(z4.string()).optional().describe("Headers key-value object"),
+  body: z4.string().optional().describe("JSON request body for POST/PUT")
+});
+async function handleHttpTester(args) {
+  try {
+    const startTime = Date.now();
+    const options = {
+      method: args.method,
+      headers: args.headers || {}
+    };
+    if (args.body && ["POST", "PUT", "PATCH"].includes(args.method)) {
+      options.body = args.body;
+      if (!options.headers) options.headers = {};
+      options.headers["Content-Type"] = "application/json";
+    }
+    const response = await fetch(args.url, options);
+    const durationMs = Date.now() - startTime;
+    const responseText = await response.text();
+    let parsedBody = responseText;
+    try {
+      parsedBody = JSON.parse(responseText);
+    } catch (_) {
+    }
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              status: response.status,
+              statusText: response.statusText,
+              durationMs,
+              headers: Object.fromEntries(response.headers.entries()),
+              body: parsedBody
+            },
+            null,
+            2
+          )
+        }
+      ]
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `HTTP Request Failed: ${error.message}`
+        }
+      ],
+      isError: true
+    };
+  }
+}
+
+// src/commands/serve.ts
+async function runServeCommand() {
+  const server = new Server(
+    {
+      name: "mcp-forge-suite",
+      version: "1.0.0"
+    },
+    {
+      capabilities: {
+        tools: {}
+      }
+    }
+  );
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return {
+      tools: [
+        {
+          name: "git_summary",
+          description: "Get status, branch, and last commit summary of a Git repository",
+          inputSchema: {
+            type: "object",
+            properties: {
+              cwd: { type: "string", description: "Repository directory path" }
+            }
+          }
+        },
+        {
+          name: "system_diagnostics",
+          description: "Get CPU, memory, uptime, and system platform information",
+          inputSchema: {
+            type: "object",
+            properties: {}
+          }
+        },
+        {
+          name: "mermaid_validate",
+          description: "Validate Mermaid.js diagram syntax structure",
+          inputSchema: {
+            type: "object",
+            properties: {
+              diagram: { type: "string", description: "Mermaid diagram text" }
+            },
+            required: ["diagram"]
+          }
+        },
+        {
+          name: "http_tester",
+          description: "Send an HTTP GET/POST request and return status, duration, headers, and body",
+          inputSchema: {
+            type: "object",
+            properties: {
+              url: { type: "string", description: "Request URL" },
+              method: { type: "string", enum: ["GET", "POST", "PUT", "DELETE"], default: "GET" },
+              headers: { type: "object", description: "Request headers" },
+              body: { type: "string", description: "Request body" }
+            },
+            required: ["url"]
+          }
+        }
+      ]
+    };
+  });
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    switch (name) {
+      case "git_summary":
+        return await handleGitSummary(gitSummarySchema.parse(args || {}));
+      case "system_diagnostics":
+        return await handleSystemDiagnostics();
+      case "mermaid_validate":
+        return await handleMermaidValidate(mermaidValidateSchema.parse(args || {}));
+      case "http_tester":
+        return await handleHttpTester(httpTesterSchema.parse(args || {}));
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  });
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+// src/ui/server.ts
+import express from "express";
+import http from "http";
+import { WebSocketServer } from "ws";
+import open from "open";
+import chalk4 from "chalk";
+async function runUiCommand(port = 3e3) {
+  const app = express();
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server });
+  app.use(express.json());
+  const dashboardHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP-Forge Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent-glow: rgba(88, 166, 255, 0.15);
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --success: #3fb950;
+      --pink: #f778ba;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: #fff;
+    }
+    .badge {
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    main {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .card h2 {
+      font-size: 1rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tool-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .tool-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tool-name { font-weight: 600; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .tool-desc { font-size: 0.85rem; color: var(--text-muted); }
+    .log-window {
+      background: #090d13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      height: 350px;
+      overflow-y: auto;
+      color: #7ee787;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--success);
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px var(--success);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      \u{1F528} MCP-FORGE <span class="badge">Web Dashboard</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span class="status-dot"></span>
+      <span style="font-size: 0.85rem; color: var(--text-muted);">Connected (Live WS)</span>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <h2>\u{1F6E0}\uFE0F Active MCP Suite Tools</h2>
+      <div class="tool-list">
+        <div class="tool-item">
+          <div>
+            <div class="tool-name">git_summary</div>
+            <div class="tool-desc">Repo branch, status & commit diagnostics</div>
+          </div>
+          <span class="badge">Stdio</span>
+        </div>
+        <div class="tool-item">
+          <div>
+            <div class="tool-name">system_diagnostics</div>
+            <div class="tool-desc">CPU, RAM & process telemetry</div>
+          </div>
+          <span class="badge">Stdio</span>
+        </div>
+        <div class="tool-item">
+          <div>
+            <div class="tool-name">mermaid_validate</div>
+            <div class="tool-desc">Diagram syntax verification</div>
+          </div>
+          <span class="badge">Stdio</span>
+        </div>
+        <div class="tool-item">
+          <div>
+            <div class="tool-name">http_tester</div>
+            <div class="tool-desc">Fast API fetcher & header inspector</div>
+          </div>
+          <span class="badge">Stdio</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>\u{1F4DF} Live JSON-RPC Event Stream</h2>
+      <div class="log-window" id="logs">
+        [SYSTEM] WebSocket connected to MCP-Forge server.<br>
+        [SYSTEM] Ready for JSON-RPC traffic inspection...<br>
+      </div>
+    </div>
+  </main>
+</body>
+</html>`;
+  app.get("/", (_, res) => {
+    res.send(dashboardHtml);
+  });
+  wss.on("connection", (ws) => {
+    ws.send(JSON.stringify({ type: "STATUS", message: "Connected to MCP-Forge Web Server" }));
+  });
+  server.listen(port, () => {
+    const url = `http://localhost:${port}`;
+    console.log(chalk4.green(`
+\u{1F680} MCP-Forge Dashboard active at ${chalk4.bold.underline(url)}`));
+    open(url).catch(() => {
+    });
+  });
+}
+
+// src/cli.ts
+var program = new Command();
+program.name("mcp-forge").description("The Swiss-Army developer toolkit for Model Context Protocol (MCP) servers").version("1.0.0");
+program.command("init [name]").description("Scaffold a new production-ready MCP server project").action((name) => {
+  printBanner();
+  runInitCommand(name);
+});
+program.command("inspect").description("Inspect an MCP server and test its tools interactively").argument("<cmd...>", "Command and arguments to start the target MCP server process").action((cmd) => {
+  printBanner();
+  runInspectCommand(cmd);
+});
+program.command("serve").description("Launch built-in developer tools MCP server suite via stdio").action(() => {
+  runServeCommand();
+});
+program.command("ui").description("Launch interactive visual web dashboard for MCP server monitoring").option("-p, --port <number>", "Port for web dashboard", "3000").action((options) => {
+  printBanner();
+  runUiCommand(parseInt(options.port, 10));
+});
+program.parse(process.argv);
+if (!process.argv.slice(2).length) {
+  printBanner();
+  program.outputHelp();
+}
+//# sourceMappingURL=cli.mjs.map
