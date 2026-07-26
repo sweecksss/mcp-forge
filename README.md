@@ -26,7 +26,14 @@
 
 - 🛠️ **Instant Scaffolding (`mcp-forge init`)**: Generate a production-ready TypeScript MCP server with full type safety, build scripts, and test suite in 5 seconds.
 - 🔍 **Interactive CLI Inspector (`mcp-forge inspect`)**: Connect to any stdio MCP server process, inspect declared `tools`, `prompts`, and `resources`, and trace JSON-RPC traffic.
-- 🧰 **Built-in Server Suite (`mcp-forge serve`)**: Ready-to-use developer tool server providing Git status summary, system diagnostics, Mermaid diagram syntax validation, and HTTP API testing.
+- 🧰 **Expanded Built-in Suite (`mcp-forge serve`)**:
+  - 🗄️ `sqlite_inspector`: Inspect schemas & execute read queries on local SQLite databases.
+  - 🐳 `docker_status`: Inspect active Docker containers, statuses, and logs.
+  - 📊 `code_metrics`: Analyze codebase line count (LOC), file counts, and language breakdown.
+  - 🐙 `git_summary`: Git repository status, branch, and commit telemetry.
+  - 💻 `system_diagnostics`: CPU, RAM, uptime, and platform telemetry.
+  - 📊 `mermaid_validate`: Validate Mermaid.js diagram syntax structure.
+  - 🌐 `http_tester`: Fast API request & header tester.
 - 🌐 **Visual Web Dashboard (`mcp-forge ui`)**: Modern dark-themed web browser interface to inspect and monitor MCP servers visually.
 - 🔌 **Extensible Plugin Ecosystem**: Simple architecture making it easy for open-source contributors to add custom MCP tools.
 

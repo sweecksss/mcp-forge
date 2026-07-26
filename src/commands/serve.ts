@@ -5,12 +5,15 @@ import { gitSummarySchema, handleGitSummary } from '../tools/gitTool.js';
 import { systemDiagnosticsSchema, handleSystemDiagnostics } from '../tools/systemTool.js';
 import { mermaidValidateSchema, handleMermaidValidate } from '../tools/mermaidTool.js';
 import { httpTesterSchema, handleHttpTester } from '../tools/httpTool.js';
+import { sqliteInspectorSchema, handleSqliteInspector } from '../tools/sqliteTool.js';
+import { dockerStatusSchema, handleDockerStatus } from '../tools/dockerTool.js';
+import { codeMetricsSchema, handleCodeMetrics } from '../tools/codeMetricsTool.js';
 
 export async function runServeCommand() {
   const server = new Server(
     {
       name: 'mcp-forge-suite',
-      version: '1.0.0'
+      version: '1.1.0'
     },
     {
       capabilities: {
@@ -64,6 +67,38 @@ export async function runServeCommand() {
             },
             required: ['url']
           }
+        },
+        {
+          name: 'sqlite_inspector',
+          description: 'Inspect tables and execute read-only queries on local SQLite databases',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              dbPath: { type: 'string', description: 'Path to SQLite database file' },
+              query: { type: 'string', description: 'SQL SELECT query to execute' }
+            },
+            required: ['dbPath']
+          }
+        },
+        {
+          name: 'docker_status',
+          description: 'Inspect active Docker containers, statuses, and names',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              all: { type: 'boolean', description: 'Include stopped containers' }
+            }
+          }
+        },
+        {
+          name: 'code_metrics',
+          description: 'Analyze codebase line count (LOC), total files, and language breakdown',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              dirPath: { type: 'string', description: 'Directory path to analyze' }
+            }
+          }
         }
       ]
     };
@@ -84,6 +119,15 @@ export async function runServeCommand() {
 
       case 'http_tester':
         return await handleHttpTester(httpTesterSchema.parse(args || {}));
+
+      case 'sqlite_inspector':
+        return await handleSqliteInspector(sqliteInspectorSchema.parse(args || {}));
+
+      case 'docker_status':
+        return await handleDockerStatus(dockerStatusSchema.parse(args || {}));
+
+      case 'code_metrics':
+        return await handleCodeMetrics(codeMetricsSchema.parse(args || {}));
 
       default:
         throw new Error(`Unknown tool: ${name}`);

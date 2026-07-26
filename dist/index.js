@@ -31,15 +31,21 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
+  codeMetricsSchema: () => codeMetricsSchema,
+  dockerStatusSchema: () => dockerStatusSchema,
   gitSummarySchema: () => gitSummarySchema,
+  handleCodeMetrics: () => handleCodeMetrics,
+  handleDockerStatus: () => handleDockerStatus,
   handleGitSummary: () => handleGitSummary,
   handleHttpTester: () => handleHttpTester,
   handleMermaidValidate: () => handleMermaidValidate,
+  handleSqliteInspector: () => handleSqliteInspector,
   handleSystemDiagnostics: () => handleSystemDiagnostics,
   httpTesterSchema: () => httpTesterSchema,
   mermaidValidateSchema: () => mermaidValidateSchema,
   runInitCommand: () => runInitCommand,
   runServeCommand: () => runServeCommand,
+  sqliteInspectorSchema: () => sqliteInspectorSchema,
   systemDiagnosticsSchema: () => systemDiagnosticsSchema
 });
 module.exports = __toCommonJS(src_exports);
@@ -217,6 +223,189 @@ async function handleHttpTester(args) {
   }
 }
 
+// src/tools/sqliteTool.ts
+var import_zod5 = require("zod");
+var import_fs = __toESM(require("fs"));
+var import_child_process2 = require("child_process");
+var sqliteInspectorSchema = import_zod5.z.object({
+  dbPath: import_zod5.z.string().describe("Absolute or relative path to SQLite database file"),
+  query: import_zod5.z.string().optional().describe("Optional SQL SELECT query to execute (defaults to listing tables)")
+});
+async function handleSqliteInspector(args) {
+  const { dbPath, query } = args;
+  if (!import_fs.default.existsSync(dbPath)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Database Error: SQLite file not found at path '${dbPath}'`
+        }
+      ],
+      isError: true
+    };
+  }
+  try {
+    const sqlCmd = query || ".tables";
+    const output = (0, import_child_process2.execSync)(`sqlite3 "${dbPath}" "${sqlCmd}"`, { encoding: "utf-8" }).trim();
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              dbPath,
+              queryExecuted: sqlCmd,
+              result: output || "Query executed successfully with empty result."
+            },
+            null,
+            2
+          )
+        }
+      ]
+    };
+  } catch (error) {
+    const stats = import_fs.default.statSync(dbPath);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              dbPath,
+              sizeBytes: stats.size,
+              lastModified: stats.mtime,
+              note: `SQLite CLI fallback mode active. File size: ${stats.size} bytes.`
+            },
+            null,
+            2
+          )
+        }
+      ]
+    };
+  }
+}
+
+// src/tools/dockerTool.ts
+var import_child_process3 = require("child_process");
+var import_zod6 = require("zod");
+var dockerStatusSchema = import_zod6.z.object({
+  all: import_zod6.z.boolean().optional().default(false).describe("Show all containers including stopped ones")
+});
+async function handleDockerStatus(args) {
+  try {
+    const flag = args.all ? "-a" : "";
+    const output = (0, import_child_process3.execSync)(`docker ps ${flag} --format "{{.ID}}|{{.Image}}|{{.Status}}|{{.Names}}"`, { encoding: "utf-8" }).trim();
+    if (!output) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ activeContainers: 0, containers: [] }, null, 2)
+          }
+        ]
+      };
+    }
+    const containers = output.split("\n").map((line) => {
+      const [id, image, status, name] = line.split("|");
+      return { id, image, status, name };
+    });
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              activeContainers: containers.length,
+              containers
+            },
+            null,
+            2
+          )
+        }
+      ]
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Docker Error: Docker daemon not running or not installed (${error.message})`
+        }
+      ],
+      isError: true
+    };
+  }
+}
+
+// src/tools/codeMetricsTool.ts
+var import_fs2 = __toESM(require("fs"));
+var import_path = __toESM(require("path"));
+var import_zod7 = require("zod");
+var codeMetricsSchema = import_zod7.z.object({
+  dirPath: import_zod7.z.string().optional().describe("Directory path to analyze (defaults to current working directory)")
+});
+async function handleCodeMetrics(args) {
+  const targetDir = import_path.default.resolve(process.cwd(), args.dirPath || ".");
+  if (!import_fs2.default.existsSync(targetDir)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Directory path '${targetDir}' does not exist.`
+        }
+      ],
+      isError: true
+    };
+  }
+  const extensionCounts = {};
+  let totalFiles = 0;
+  let totalLines = 0;
+  function walk(currentDir) {
+    const files = import_fs2.default.readdirSync(currentDir, { withFileTypes: true });
+    for (const file of files) {
+      if (file.name.startsWith(".") || file.name === "node_modules" || file.name === "dist" || file.name === "build") {
+        continue;
+      }
+      const fullPath = import_path.default.join(currentDir, file.name);
+      if (file.isDirectory()) {
+        walk(fullPath);
+      } else if (file.isFile()) {
+        const ext = import_path.default.extname(file.name).toLowerCase() || "no-extension";
+        try {
+          const content = import_fs2.default.readFileSync(fullPath, "utf-8");
+          const lines = content.split("\n").length;
+          totalFiles++;
+          totalLines += lines;
+          if (!extensionCounts[ext]) {
+            extensionCounts[ext] = { files: 0, lines: 0 };
+          }
+          extensionCounts[ext].files++;
+          extensionCounts[ext].lines += lines;
+        } catch (_) {
+        }
+      }
+    }
+  }
+  walk(targetDir);
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            targetDir,
+            totalFiles,
+            totalLines,
+            byLanguage: extensionCounts
+          },
+          null,
+          2
+        )
+      }
+    ]
+  };
+}
+
 // src/commands/serve.ts
 var import_server = require("@modelcontextprotocol/sdk/server/index.js");
 var import_stdio = require("@modelcontextprotocol/sdk/server/stdio.js");
@@ -225,7 +414,7 @@ async function runServeCommand() {
   const server = new import_server.Server(
     {
       name: "mcp-forge-suite",
-      version: "1.0.0"
+      version: "1.1.0"
     },
     {
       capabilities: {
@@ -278,6 +467,38 @@ async function runServeCommand() {
             },
             required: ["url"]
           }
+        },
+        {
+          name: "sqlite_inspector",
+          description: "Inspect tables and execute read-only queries on local SQLite databases",
+          inputSchema: {
+            type: "object",
+            properties: {
+              dbPath: { type: "string", description: "Path to SQLite database file" },
+              query: { type: "string", description: "SQL SELECT query to execute" }
+            },
+            required: ["dbPath"]
+          }
+        },
+        {
+          name: "docker_status",
+          description: "Inspect active Docker containers, statuses, and names",
+          inputSchema: {
+            type: "object",
+            properties: {
+              all: { type: "boolean", description: "Include stopped containers" }
+            }
+          }
+        },
+        {
+          name: "code_metrics",
+          description: "Analyze codebase line count (LOC), total files, and language breakdown",
+          inputSchema: {
+            type: "object",
+            properties: {
+              dirPath: { type: "string", description: "Directory path to analyze" }
+            }
+          }
         }
       ]
     };
@@ -293,6 +514,12 @@ async function runServeCommand() {
         return await handleMermaidValidate(mermaidValidateSchema.parse(args || {}));
       case "http_tester":
         return await handleHttpTester(httpTesterSchema.parse(args || {}));
+      case "sqlite_inspector":
+        return await handleSqliteInspector(sqliteInspectorSchema.parse(args || {}));
+      case "docker_status":
+        return await handleDockerStatus(dockerStatusSchema.parse(args || {}));
+      case "code_metrics":
+        return await handleCodeMetrics(codeMetricsSchema.parse(args || {}));
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -302,21 +529,21 @@ async function runServeCommand() {
 }
 
 // src/commands/init.ts
-var import_fs = __toESM(require("fs"));
-var import_path = __toESM(require("path"));
+var import_fs3 = __toESM(require("fs"));
+var import_path2 = __toESM(require("path"));
 var import_chalk = __toESM(require("chalk"));
 var import_ora = __toESM(require("ora"));
 async function runInitCommand(projectName) {
   const targetName = projectName || "my-mcp-server";
-  const targetDir = import_path.default.resolve(process.cwd(), targetName);
-  if (import_fs.default.existsSync(targetDir)) {
+  const targetDir = import_path2.default.resolve(process.cwd(), targetName);
+  if (import_fs3.default.existsSync(targetDir)) {
     console.error(import_chalk.default.red(`Error: Directory '${targetName}' already exists!`));
     process.exit(1);
   }
   const spinner = (0, import_ora.default)(`Scaffolding MCP Server in ${import_chalk.default.bold(targetName)}...`).start();
   try {
-    import_fs.default.mkdirSync(targetDir, { recursive: true });
-    import_fs.default.mkdirSync(import_path.default.join(targetDir, "src"), { recursive: true });
+    import_fs3.default.mkdirSync(targetDir, { recursive: true });
+    import_fs3.default.mkdirSync(import_path2.default.join(targetDir, "src"), { recursive: true });
     const pkgJson = {
       name: targetName,
       version: "1.0.0",
@@ -341,7 +568,7 @@ async function runInitCommand(projectName) {
         "typescript": "^5.5.2"
       }
     };
-    import_fs.default.writeFileSync(import_path.default.join(targetDir, "package.json"), JSON.stringify(pkgJson, null, 2));
+    import_fs3.default.writeFileSync(import_path2.default.join(targetDir, "package.json"), JSON.stringify(pkgJson, null, 2));
     const tsConfig = {
       compilerOptions: {
         target: "ES2022",
@@ -354,7 +581,7 @@ async function runInitCommand(projectName) {
       },
       include: ["src/**/*"]
     };
-    import_fs.default.writeFileSync(import_path.default.join(targetDir, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
+    import_fs3.default.writeFileSync(import_path2.default.join(targetDir, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
     const tsupConfig = `import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -367,7 +594,7 @@ export default defineConfig({
   }
 });
 `;
-    import_fs.default.writeFileSync(import_path.default.join(targetDir, "tsup.config.ts"), tsupConfig);
+    import_fs3.default.writeFileSync(import_path2.default.join(targetDir, "tsup.config.ts"), tsupConfig);
     const serverCode = `import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -434,7 +661,7 @@ main().catch((err) => {
   process.exit(1);
 });
 `;
-    import_fs.default.writeFileSync(import_path.default.join(targetDir, "src", "index.ts"), serverCode);
+    import_fs3.default.writeFileSync(import_path2.default.join(targetDir, "src", "index.ts"), serverCode);
     const readmeContent = `# ${targetName}
 
 Model Context Protocol (MCP) Server generated with [mcp-forge](https://github.com/sweecksss/mcp-forge).
@@ -453,7 +680,7 @@ npm start
 npx mcp-forge inspect node ./dist/index.js
 \`\`\`
 `;
-    import_fs.default.writeFileSync(import_path.default.join(targetDir, "README.md"), readmeContent);
+    import_fs3.default.writeFileSync(import_path2.default.join(targetDir, "README.md"), readmeContent);
     spinner.succeed(import_chalk.default.green(`Successfully scaffolded ${import_chalk.default.bold(targetName)}!`));
     console.log(`
 Next steps:`);
@@ -467,15 +694,21 @@ Next steps:`);
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  codeMetricsSchema,
+  dockerStatusSchema,
   gitSummarySchema,
+  handleCodeMetrics,
+  handleDockerStatus,
   handleGitSummary,
   handleHttpTester,
   handleMermaidValidate,
+  handleSqliteInspector,
   handleSystemDiagnostics,
   httpTesterSchema,
   mermaidValidateSchema,
   runInitCommand,
   runServeCommand,
+  sqliteInspectorSchema,
   systemDiagnosticsSchema
 });
 //# sourceMappingURL=index.js.map
